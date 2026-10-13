@@ -1,0 +1,23 @@
+# Secrets and local environment files (never commit private keys)
+.env
+.env.*
+!.env.example
+anvil.env
+
+# Dependencies and build output
+node_modules/
+dist/
+.next/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Local AI assistant settings
+.claude/
+
+# Logs
+*.log
