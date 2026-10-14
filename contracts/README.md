@@ -61,3 +61,25 @@ The script prints the address of every facet and of the vault (the diamond). Opt
 
 > Only ever use Anvil's test keys here. Never put a real private key in a file you commit —
 > `.env` and `anvil.env` are git-ignored for that reason.
+
+## Deploy to Sepolia
+
+From `contracts/`, make sure `.env` contains `sepolia_RPC_URL` and `private_key`. Load them
+without printing the private key, then use the key's address as the vault owner:
+
+```shell
+set -a
+source .env
+set +a
+export OWNER="$(cast wallet address --private-key "$private_key")"
+
+forge script script/DeployVaultDiamond.s.sol:DeployVaultDiamond \
+  --rpc-url "$sepolia_RPC_URL" \
+  --private-key "$private_key" \
+  --gas-estimate-multiplier 1000 \
+  --slow \
+  --broadcast
+```
+
+The Cancun EVM target and larger gas estimate margin are required for this Sepolia RPC.
+`--slow` waits for each deployment transaction to succeed before sending the next one.
