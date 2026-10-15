@@ -28,35 +28,45 @@ export default function EnsPage() {
   const { data: myName } = useEnsName({ address, chainId: mainnet.id }); // YOUR primary name, if you have one
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">ENS lookup</h1>
+    <div className="ens-page">
+      <p className="eyebrow">Ethereum name service / mainnet</p>
+      <h1 className="page-title">Names make<br />addresses human.</h1>
+      <p className="page-intro">Look up an ENS name and the public records it points to.</p>
 
-      <input
-        className="w-full rounded border px-2 py-1"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="name.eth"
-      />
-
-      {input && !name && <p className="text-red-600">Not a valid ENS name</p>}
-      {isLoading && <p>Resolving…</p>}
-      {name && !isLoading && !resolved && <p>No address is set for this name.</p>}
-
-      {resolved && (
-        <div className="space-y-1 rounded">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {avatar && <img src={avatar} alt="avatar" className="h-16 w-16 rounded-full" />}
-          <p className="break-all"><b>Address:</b> {resolved}</p>
-          <p><b>Primary name of that address:</b> {primaryOfResolved ?? "none set"}</p>
-          {description && <p><b>Description:</b> {description}</p>}
-          {twitter && <p><b>Twitter:</b> @{twitter}</p>}
-        </div>
-      )}
+      <div className="lookup-layout">
+        <section>
+          <p className="section-kicker">Resolve a name</p>
+          <label className="lookup-form field-label" htmlFor="ens-name">
+            ENS name
+            <input
+              id="ens-name"
+              className="field-input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="name.eth"
+            />
+          </label>
+          {input && !name && <p className="status-message">That name is not valid ENS.</p>}
+          {isLoading && <p className="gallery-state">Resolving on Ethereum mainnet…</p>}
+          {name && !isLoading && !resolved && <p className="gallery-state">No address is set for this name.</p>}
+        </section>
+        {resolved && (
+          <section className="lookup-result" aria-live="polite">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {avatar && <img src={avatar} alt={`${name} avatar`} className="ens-avatar" />}
+            <div><p className="section-kicker">Resolved identity</p><h2 className="ens-primary-name">{name}</h2></div>
+            <dl className="data-list">
+              <div><dt>Address</dt><dd>{resolved}</dd></div>
+              <div><dt>Primary name</dt><dd>{primaryOfResolved ?? "None set"}</dd></div>
+              {description && <div><dt>Description</dt><dd>{description}</dd></div>}
+              {twitter && <div><dt>Twitter</dt><dd>@{twitter}</dd></div>}
+            </dl>
+          </section>
+        )}
+      </div>
 
       {address && (
-        <p className="text-sm text-neutral-600">
-          Your own primary name on mainnet: <b>{myName ?? "none set"}</b>
-        </p>
+        <p className="wallet-hint">Your primary name: <b>{myName ?? "None set"}</b></p>
       )}
     </div>
   );

@@ -5,7 +5,7 @@ Class code for the Web3Bridge Cohort XV Solidity sessions.
 | Folder | What it is |
 | --- | --- |
 | [`contracts/`](contracts/) | Foundry project: a Savings Vault built as a diamond ([EIP-2535](https://eips.ethereum.org/EIPS/eip-2535)) |
-| `frontend/` | Coming soon |
+| [`frontend/`](frontend/) | Next.js dApp: ENS lookup, Pinata/IPFS NFT minting and gallery, Chainlink ETH/USD |
 
 ## Quick start
 

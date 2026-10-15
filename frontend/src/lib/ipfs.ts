@@ -11,9 +11,19 @@ export async function uploadToIpfs(file: File): Promise<string> {
 }
 
 // Uploads the image, then the metadata JSON that points to it. Returns "ipfs://<metadata CID>".
-export async function uploadNft(image: File, name: string, description: string): Promise<string> {
+export async function uploadNft(image: File, name: string, description: string, ethValue: string): Promise<string> {
   const imageCid = await uploadToIpfs(image);
-  const metadata = { name, description, image: `ipfs://${imageCid}` };
+  return uploadNftMetadata(`ipfs://${imageCid}`, name, description, ethValue);
+}
+
+export async function uploadNftFromCid(imageCid: string, name: string, description: string, ethValue: string): Promise<string> {
+  const cid = imageCid.trim().replace(/^ipfs:\/\//, "");
+  if (!/^[a-zA-Z0-9]+$/.test(cid)) throw new Error("Enter a valid IPFS CID");
+  return uploadNftMetadata(`ipfs://${cid}`, name, description, ethValue);
+}
+
+async function uploadNftMetadata(image: string, name: string, description: string, ethValue: string): Promise<string> {
+  const metadata = { name, description, image, ethValue };
   const metadataFile = new File([JSON.stringify(metadata)], "metadata.json", { type: "application/json" });
   const metadataCid = await uploadToIpfs(metadataFile);
   return `ipfs://${metadataCid}`;

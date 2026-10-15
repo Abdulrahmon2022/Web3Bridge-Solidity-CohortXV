@@ -9,15 +9,15 @@ export function ConnectButton() {
 
   if (isConnected) {
     return (
-      <button className="rounded bg-neutral-200 px-3 py-1 text-sm" onClick={() => disconnect()}>
-        {chain?.name ?? "Unknown network"} · {address?.slice(0, 6)}…{address?.slice(-4)} · disconnect
+      <button className="wallet-button" onClick={() => disconnect()} title="Disconnect wallet">
+        {chain?.name ?? "Unknown network"} · {address?.slice(0, 6)}…{address?.slice(-4)} · Disconnect
       </button>
     );
   }
 
   return (
     <button
-      className="rounded bg-black px-3 py-1 text-sm text-white disabled:opacity-50"
+      className="wallet-button"
       disabled={isPending}
       onClick={() => connect({ connector: connectors[0] })}
     >
