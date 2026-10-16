@@ -14,6 +14,14 @@ The two `NEXT_PUBLIC_*_RPC_URL` values and NFT address are included in browser c
 
 The mint form includes a reference ETH amount in its IPFS metadata. It is not a mint fee or verified market valuation; the NFT contract does not store a price.
 
+## Day 4: Smart Accounts and Live Alerts
+
+The NFT studio's **Smart account · mint twice** action submits two `ClassNFT.mint` calls in one Safe UserOperation through Pimlico on Sepolia. The Pimlico API key is server-only: add `PIMLICO_API_KEY` as a Vercel Secret for Preview and Production, and never expose it with a `NEXT_PUBLIC_` prefix. The alert page at `/alerts` listens for new `Minted` events while open, resolves recipients through ENS, and can show browser notifications after permission is granted.
+
+After completing one smart-account mint, add its bundled Sepolia transaction link here: **UserOperation transaction:** TODO. In the bundled transaction, **From** is the bundler and **To** is the EntryPoint; the UserOperation sender is the Safe smart account, and its inner calls target `ClassNFT`. **Gas payer:** record the actual receipt result shown by the app (Pimlico paymaster if a paymaster address is present; otherwise the smart account).
+
+The alert page only receives live events while it is open and cannot notify a user who has left the page. A production product would run a persistent event indexer or backend subscription, store events, and deliver notifications through push, email, or an in-app inbox. It would also track delivery and let users manage notification preferences.
+
 ## Deploy Online
 
-Create a Vercel project with `frontend/` as its Root Directory. Configure the same required variables in Vercel project settings for Preview and Production, then deploy. The Pinata JWT must be configured as a server-side secret. The upload route uses it to pin files without exposing it to the browser.
+Create a Vercel project with `frontend/` as its Root Directory. Configure the required variables in Vercel project settings for Preview and Production, then deploy. `PINATA_JWT` and `PIMLICO_API_KEY` must be server-side secrets. The upload and Pimlico routes use them without exposing either value to the browser.

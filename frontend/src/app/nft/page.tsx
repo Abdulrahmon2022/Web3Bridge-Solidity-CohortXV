@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { formatUnits, parseEther, parseEventLogs } from "viem";
-import { useAccount, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
+import { useAccount, usePublicClient, useReadContract, useSwitchChain, useWalletClient, useWriteContract } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { NFT_ADDRESS, nftAbi, ipfsToHttp } from "@/contracts/nft";
 import { ETH_USD_FEED_ADDRESS, ethUsdFeedAbi } from "@/contracts/chainlink";
-import { uploadNft, uploadNftFromCid } from "@/lib/ipfs";
+import { uploadNft } from "@/lib/ipfs";
+import { mintTwiceWithSmartAccount } from "@/lib/smartMint";
 import { ethValueToUsdCents, formatUsdCents } from "@/lib/pricing";
 import { NftGallery } from "@/components/NftGallery";
 
@@ -15,6 +16,7 @@ type Metadata = { name: string; description: string; image: string; ethValue?: s
 export default function NftPage() {
   const { isConnected } = useAccount();
   const { switchChainAsync } = useSwitchChain(); // ask the wallet to move to Sepolia
+  const { refetch: refetchWalletClient } = useWalletClient({ chainId: sepolia.id });
   const { writeContractAsync } = useWriteContract(); // send a transaction (wallet popup)
   const publicClient = usePublicClient({ chainId: sepolia.id }); // read Sepolia
   const { data: feedDecimals } = useReadContract({
@@ -45,11 +47,12 @@ export default function NftPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [ethValue, setEthValue] = useState("");
-  const [imageCid, setImageCid] = useState("bafybeibfpqq4ripkavcanqk474byisbsa2pd3phlwaojuujxmlqphd5hl4");
   const [image, setImage] = useState<File | null>(null);
   const [localImagePreview, setLocalImagePreview] = useState<string>();
   const [status, setStatus] = useState("");
   const [minted, setMinted] = useState<{ tokenId: string; uri: string; hash: string } | null>(null);
+  const [smartMintResult, setSmartMintResult] = useState<Awaited<ReturnType<typeof mintTwiceWithSmartAccount>> | null>(null);
+  const [isSmartMinting, setIsSmartMinting] = useState(false);
   const parsedEthValue = (() => {
     try {
       return parseEther(ethValue);
@@ -57,8 +60,6 @@ export default function NftPage() {
       return 0n;
     }
   })();
-  const cleanImageCid = imageCid.trim().replace(/^ipfs:\/\//, "");
-  const hasImageSource = Boolean(image || /^[a-zA-Z0-9]+$/.test(cleanImageCid));
   useEffect(() => {
     if (!image) {
       setLocalImagePreview(undefined);
@@ -68,15 +69,13 @@ export default function NftPage() {
     setLocalImagePreview(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [image]);
-  const previewSource = image ? localImagePreview : cleanImageCid ? ipfsToHttp(`ipfs://${cleanImageCid}`) : undefined;
+  const previewSource = image ? localImagePreview : undefined;
 
   async function mint() {
-    if (!hasImageSource || parsedEthValue <= 0n) return;
+    if (!image || parsedEthValue <= 0n) return;
     try {
-      setStatus(image ? "1/3 Uploading the image and metadata to IPFS…" : "1/3 Uploading metadata to IPFS…");
-      const uri = image
-        ? await uploadNft(image, name, description, ethValue)
-        : await uploadNftFromCid(cleanImageCid, name, description, ethValue);
+      setStatus("1/3 Uploading the image and metadata to IPFS…");
+      const uri = await uploadNft(image, name, description, ethValue);
 
       setStatus("2/3 Confirm the mint in your wallet…");
       await switchChainAsync({ chainId: sepolia.id });
@@ -98,6 +97,30 @@ export default function NftPage() {
       setStatus("Done ✅");
     } catch (e) {
       setStatus(`Error: ${(e as Error).message}`);
+    }
+  }
+
+  async function smartMintTwice() {
+    if (!image || parsedEthValue <= 0n || isSmartMinting || !publicClient) return;
+    setIsSmartMinting(true);
+    setSmartMintResult(null);
+    try {
+      setStatus("1/3 Uploading image and metadata to IPFS…");
+      const uri = await uploadNft(image, name, description, ethValue);
+
+      setStatus("2/3 Switch to Sepolia and approve the smart-account signature…");
+      await switchChainAsync({ chainId: sepolia.id });
+      const { data: owner } = await refetchWalletClient();
+      if (!owner) throw new Error("Connect a wallet before using the smart account.");
+
+      setStatus("3/3 Sending two mints in one UserOperation…");
+      const result = await mintTwiceWithSmartAccount(publicClient, owner, uri);
+      setSmartMintResult(result);
+      setStatus("Done: both mints were confirmed in one UserOperation.");
+    } catch (e) {
+      setStatus(`Smart mint error: ${(e as Error).message}`);
+    } finally {
+      setIsSmartMinting(false);
     }
   }
 
@@ -168,22 +191,37 @@ export default function NftPage() {
             onChange={(e) => setEthValue(e.target.value)}
           />
         </label>
-            <label className="field-label">Image IPFS CID
-              <input className="field-input" value={imageCid} onChange={(e) => setImageCid(e.target.value)} aria-label="Image IPFS CID" />
-            </label>
             <label className="field-label">Choose another image
               <input className="file-input" type="file" accept="image/*" onChange={(e) => setImage(e.target.files?.[0] ?? null)} />
             </label>
           </div>
         <button
           className="mint-button"
-          disabled={!isConnected || !hasImageSource || !name || parsedEthValue <= 0n}
+          disabled={!isConnected || !image || !name || parsedEthValue <= 0n}
           onClick={mint}
         >
           <span>Pin metadata & mint</span><span aria-hidden="true">↗</span>
         </button>
+        <button
+          className="mint-button smart-mint-button"
+          disabled={!isConnected || !image || !name || parsedEthValue <= 0n || isSmartMinting}
+          onClick={smartMintTwice}
+        >
+          <span>{isSmartMinting ? "Preparing smart account…" : "Smart account · mint twice"}</span>
+          <span aria-hidden="true">×2</span>
+        </button>
         {!isConnected && <p className="wallet-hint">Connect a wallet to mint on Sepolia.</p>}
         <p className="status-message" aria-live="polite">{status}</p>
+        {smartMintResult && (
+          <div className="smart-mint-result">
+            <p><b>Smart account:</b> {smartMintResult.accountAddress}</p>
+            <p><b>UserOperation:</b> {smartMintResult.userOperationHash}</p>
+            <p><b>Gas paid by:</b> {smartMintResult.gasPayer}</p>
+            <a href={`https://sepolia.etherscan.io/tx/${smartMintResult.transactionHash}`} target="_blank" rel="noreferrer">
+              View bundled transaction on Etherscan ↗
+            </a>
+          </div>
+        )}
         {minted && (
           <div className="minted-result">
             <p><b>Minted token #{minted.tokenId}</b></p>
@@ -203,7 +241,7 @@ export default function NftPage() {
               // eslint-disable-next-line @next/next/no-img-element
               <img className="artwork-image" src={previewSource} alt={name ? `Preview of ${name}` : "Preview of supplied IPFS artwork"} />
             ) : (
-              <div className="artwork-placeholder"><strong>Your next collectible</strong><span>Add an IPFS CID or select an image to see a preview.</span></div>
+              <div className="artwork-placeholder"><strong>Your next collectible</strong><span>Choose an image to see a preview.</span></div>
             )}
           </div>
           <div className="artwork-caption">

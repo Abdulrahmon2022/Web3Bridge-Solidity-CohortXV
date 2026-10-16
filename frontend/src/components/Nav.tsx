@@ -8,6 +8,7 @@ const links = [
   ["/", "Home"],
   ["/ens", "ENS"],
   ["/nft", "IPFS NFT"],
+  ["/alerts", "Alerts"],
 ];
 
 export function Nav() {

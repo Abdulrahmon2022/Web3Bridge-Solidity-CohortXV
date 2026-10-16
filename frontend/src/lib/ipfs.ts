@@ -5,9 +5,20 @@ export async function uploadToIpfs(file: File): Promise<string> {
   form.append("file", file);
 
   const res = await fetch("/api/upload", { method: "POST", body: form });
-  const json = await res.json();
-  if (!res.ok) throw new Error(JSON.stringify(json));
-  return json.cid as string;
+  const responseText = await res.text();
+  let json: { cid?: string; error?: string; details?: unknown };
+  try {
+    json = JSON.parse(responseText);
+  } catch {
+    throw new Error(responseText || `Upload failed with status ${res.status}`);
+  }
+
+  if (!res.ok) {
+    const details = typeof json.details === "string" ? json.details : JSON.stringify(json.details);
+    throw new Error([json.error, details].filter(Boolean).join(": ") || `Upload failed with status ${res.status}`);
+  }
+  if (!json.cid) throw new Error("Upload succeeded but the server did not return a file CID.");
+  return json.cid;
 }
 
 // Uploads the image, then the metadata JSON that points to it. Returns "ipfs://<metadata CID>".
